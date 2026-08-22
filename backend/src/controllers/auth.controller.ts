@@ -18,7 +18,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
   try {
     const parsedData = registerSchema.safeParse(req.body);
     if (!parsedData.success) {
-      res.status(400).json({ error: 'Validation failed', details: parsedData.error.errors });
+      res.status(400).json({ error: 'Validation failed', details: parsedData.error.format() });
       return;
     }
 
@@ -63,7 +63,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
   try {
     const parsedData = loginSchema.safeParse(req.body);
     if (!parsedData.success) {
-      res.status(400).json({ error: 'Validation failed', details: parsedData.error.errors });
+      res.status(400).json({ error: 'Validation failed', details: parsedData.error.format() });
       return;
     }
 
