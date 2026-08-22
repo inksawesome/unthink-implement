@@ -1,13 +1,100 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+}
+
+enum Role {
+  PATIENT
+  DOCTOR
+  ADMIN
+}
+
+enum AppointmentStatus {
+  PENDING
+  BOOKED
+  COMPLETED
+  CANCELLED
+}
+
+enum Frequency {
+  DAILY
+  TWICE_DAILY
+  WEEKLY
+  AS_NEEDED
+}
+
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  passwordHash  String
+  name          String
+  role          Role
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relationships
+  doctorProfile Doctor?
+  appointments  Appointment[] @relation("PatientAppointments")
+}
+
+model Doctor {
+  id                 String   @id @default(uuid())
+  userId             String   @unique
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  specialization     String
+  workingHours       Json     // e.g. {"mon": ["09:00-17:00"]}
+  slotDurationMins   Int      @default(30)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  // Relationships
+  leaves             Leave[]
+  appointments       Appointment[] @relation("DoctorAppointments")
+}
+
+model Leave {
+  id        String   @id @default(uuid())
+  doctorId  String
+  doctor    Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  leaveDate DateTime @db.Date
+  createdAt DateTime @default(now())
+
+  @@unique([doctorId, leaveDate])
+}
+
+model Appointment {
+  id                      String   @id @default(uuid())
+  patientId               String
+  patient                 User     @relation("PatientAppointments", fields: [patientId], references: [id])
+  doctorId                String
+  doctor                  Doctor   @relation("DoctorAppointments", fields: [doctorId], references: [id])
+  startTime               DateTime
+  endTime                 DateTime
+  status                  AppointmentStatus @default(PENDING)
+  symptomsRaw             String?
+  preVisitSummary         Json?    // { urgency, complaint, questions }
+  postVisitNotesRaw       String?
+  postVisitSummaryPatient String?
+  gcalEventId             String?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  prescriptions           Prescription[]
+
+  // Ensures no overlapping BOOKED appointments for the same doctor at the same time
+  @@unique([doctorId, startTime, status], name: "doctor_startTime_status_unique")
+}
+
+model Prescription {
+  id               String      @id @default(uuid())
+  appointmentId    String
+  appointment      Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  medicationName   String
+  frequency        Frequency
+  startDate        DateTime    @db.Date
+  endDate          DateTime    @db.Date
+  createdAt        DateTime    @default(now())
 }
