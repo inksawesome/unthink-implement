@@ -84,8 +84,7 @@ model Appointment {
 
   prescriptions           Prescription[]
 
-  // Ensures no overlapping BOOKED appointments for the same doctor at the same time
-  @@unique([doctorId, startTime, status], name: "doctor_startTime_status_unique")
+  // Ensures no overlapping BOOKED appointments for the same doctor at the same time (handled via custom SQL migration)
 }
 
 model Prescription {

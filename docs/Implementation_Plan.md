@@ -31,12 +31,12 @@ This document outlines a phased approach to implementing the system described in
 
 ## Phase 4: Core Booking Engine
 **Goal:** Implement the logic to discover and hold slots without conflicts.
-- [ ] **Availability Calculation:** Implement `GET /api/doctors/:id/slots`. This logic must calculate total slots from doctor working hours and subtract existing `Leaves`, `Appointments`, and Redis active holds.
-- [ ] **Redis Slot Hold:** 
+- [x] **Availability Calculation:** Implement `GET /api/doctors/:id/slots`. This logic must calculate total slots from doctor working hours and subtract existing `Leaves`, `Appointments`, and Redis active holds.
+- [x] **Redis Slot Hold:** 
   - Implement `POST /api/appointments/hold`.
   - Use Redis `SET ... NX` to reserve the slot for 10 minutes. 
   - Return a `hold_token` to the client.
-- [ ] **Booking Confirmation:** 
+- [x] **Booking Confirmation:** 
   - Implement `POST /api/appointments/book`.
   - Verify the `hold_token`, insert the appointment into the database using a transaction, and delete the Redis hold.
 
