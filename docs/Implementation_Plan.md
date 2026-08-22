@@ -4,30 +4,30 @@ This document outlines a phased approach to implementing the system described in
 
 ## Phase 1: Project Initialization & Infrastructure Setup
 **Goal:** Establish the foundation, repository structure, and external service accounts.
-- [ ] **Repository Setup:** Initialize a monorepo (e.g., using Turborepo) or separate folders for `frontend` and `backend`.
-- [ ] **Database & Cache:** Set up PostgreSQL and Redis (e.g., via Docker Compose for local development).
-- [ ] **Backend Framework:** Initialize Node.js/Express (or NestJS) with TypeScript.
-- [ ] **Frontend Framework:** Initialize Next.js with TailwindCSS.
-- [ ] **3rd-Party Credentials:** 
+- [x] **Repository Setup:** Initialize a monorepo (e.g., using Turborepo) or separate folders for `frontend` and `backend`.
+- [x] **Database & Cache:** Set up PostgreSQL and Redis (e.g., via Docker Compose for local development).
+- [x] **Backend Framework:** Initialize Node.js/Express (or NestJS) with TypeScript.
+- [x] **Frontend Framework:** Initialize Next.js with TailwindCSS.
+- [x] **3rd-Party Credentials:** 
   - Set up OpenAI API key.
   - Set up SendGrid/Nodemailer credentials.
   - Set up Google Cloud Console project for Calendar API (OAuth 2.0 Client IDs).
 
 ## Phase 2: Database Schema & ORM Setup
 **Goal:** Create the data layer to support core operations.
-- [ ] **ORM Configuration:** Install and configure an ORM (Prisma or TypeORM).
-- [ ] **Schema Definition:** 
+- [x] **ORM Configuration:** Install and configure an ORM (Prisma or TypeORM).
+- [x] **Schema Definition:** 
   - Create models for `User`, `Doctor`, `Patient`, `Appointment`, `Leave`, and `Prescription`.
   - Add necessary indexes (e.g., on `doctor_id`, `start_time` for fast availability lookups).
   - Define the `UNIQUE` constraint on `Appointments(doctor_id, start_time)` where `status = 'BOOKED'`.
-- [ ] **Migrations:** Generate and run the initial database migration.
-- [ ] **Seeding:** Create a seed script with mock admin, doctors, and patients for testing.
+- [x] **Migrations:** Generate and run the initial database migration.
+- [x] **Seeding:** Create a seed script with mock admin, doctors, and patients for testing.
 
 ## Phase 3: Authentication & Role Management
 **Goal:** Secure the API and manage user roles (Patient, Doctor, Admin).
-- [ ] **User Registration & Login:** Implement `POST /api/auth/register` and `POST /api/auth/login`.
-- [ ] **JWT Implementation:** Set up token generation and validation.
-- [ ] **Role-Based Access Control (RBAC):** Create middleware (e.g., `requireRole('ADMIN')`) to protect sensitive routes.
+- [x] **User Registration & Login:** Implement `POST /api/auth/register` and `POST /api/auth/login`.
+- [x] **JWT Implementation:** Set up token generation and validation.
+- [x] **Role-Based Access Control (RBAC):** Create middleware (e.g., `requireRole('ADMIN')`) to protect sensitive routes.
 
 ## Phase 4: Core Booking Engine
 **Goal:** Implement the logic to discover and hold slots without conflicts.
