@@ -5,6 +5,11 @@ import authRoutes from './routes/auth.routes';
 import doctorRoutes from './routes/doctor.routes';
 import appointmentRoutes from './routes/appointment.routes';
 
+// Import workers to start them
+import './workers/email.worker';
+import './workers/calendar.worker';
+import './workers/llm.worker';
+
 dotenv.config();
 
 const app = express();

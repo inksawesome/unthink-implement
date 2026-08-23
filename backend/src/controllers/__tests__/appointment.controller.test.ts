@@ -14,6 +14,12 @@ describe('Appointment Controller', () => {
       json: jest.fn(),
     };
     jest.clearAllMocks();
+    
+    // Mock queue adds
+    const { emailQueue, calendarQueue, llmQueue } = require('../../workers/queue');
+    emailQueue.add = jest.fn().mockResolvedValue(true);
+    calendarQueue.add = jest.fn().mockResolvedValue(true);
+    llmQueue.add = jest.fn().mockResolvedValue(true);
   });
 
   describe('holdSlot', () => {
@@ -96,7 +102,8 @@ describe('Appointment Controller', () => {
     it('should book successfully and delete hold', async () => {
       mockRequest.body = validBody;
       (redisClient.get as jest.Mock).mockResolvedValue(JSON.stringify({ patientId: 'patient1', holdToken: validBody.holdToken }));
-      prismaMock.doctor.findUnique.mockResolvedValue({ id: 'd1', userId: 'doc', specialization: '', workingHours: {}, slotDurationMins: 30, createdAt: new Date(), updatedAt: new Date() });
+      prismaMock.doctor.findUnique.mockResolvedValue({ id: 'd1', userId: 'doc', specialization: '', workingHours: {}, slotDurationMins: 30, createdAt: new Date(), updatedAt: new Date(), user: { email: 'doctor@test.com' } } as any);
+      prismaMock.user.findUnique.mockResolvedValue({ id: 'patient1', email: 'patient@test.com', role: 'PATIENT', passwordHash: '', name: 'P', createdAt: new Date(), updatedAt: new Date() } as any);
       
       const mockTx = { appointment: { create: jest.fn().mockResolvedValue({ id: 'a1' }) } };
       prismaMock.$transaction.mockImplementation(async (callback) => {
@@ -114,7 +121,8 @@ describe('Appointment Controller', () => {
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
       mockRequest.body = validBody;
       (redisClient.get as jest.Mock).mockResolvedValue(JSON.stringify({ patientId: 'patient1', holdToken: validBody.holdToken }));
-      prismaMock.doctor.findUnique.mockResolvedValue({ id: 'd1', userId: 'doc', specialization: '', workingHours: {}, slotDurationMins: 30, createdAt: new Date(), updatedAt: new Date() });
+      prismaMock.doctor.findUnique.mockResolvedValue({ id: 'd1', userId: 'doc', specialization: '', workingHours: {}, slotDurationMins: 30, createdAt: new Date(), updatedAt: new Date(), user: { email: 'doctor@test.com' } } as any);
+      prismaMock.user.findUnique.mockResolvedValue({ id: 'patient1', email: 'patient@test.com', role: 'PATIENT', passwordHash: '', name: 'P', createdAt: new Date(), updatedAt: new Date() } as any);
       
       prismaMock.$transaction.mockImplementation(async () => {
         const error = new Error('Unique constraint');

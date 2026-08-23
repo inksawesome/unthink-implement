@@ -4,6 +4,7 @@ import prisma from '../db/prisma';
 import { redisClient } from '../config/redis';
 import crypto from 'crypto';
 import { addMinutes, parseISO } from 'date-fns';
+import { emailQueue, calendarQueue, llmQueue } from '../workers/queue';
 
 const HoldSlotSchema = z.object({
   doctorId: z.string().uuid(),
@@ -129,10 +130,15 @@ export const bookAppointment = async (req: Request, res: Response): Promise<void
       return;
     }
 
-    // 2. Fetch Doctor for slot duration
-    const doctor = await prisma.doctor.findUnique({ where: { userId: doctorId } });
-    if (!doctor) {
-      res.status(404).json({ error: 'Doctor not found' });
+    // 2. Fetch Doctor and Patient for emails and slot duration
+    const doctor = await prisma.doctor.findUnique({ 
+      where: { userId: doctorId },
+      include: { user: true }
+    });
+    const patient = await prisma.user.findUnique({ where: { id: patientId } });
+    
+    if (!doctor || !patient) {
+      res.status(404).json({ error: 'Doctor or Patient not found' });
       return;
     }
 
@@ -160,7 +166,25 @@ export const bookAppointment = async (req: Request, res: Response): Promise<void
     // 4. Clean up Redis hold since booking was successful
     await redisClient.del(holdKey);
 
-    // TODO: In Phase 5, we will enqueue background jobs here (email, GCal, LLM)
+    // 5. Enqueue background jobs
+    await llmQueue.add('generate-pre-visit', { 
+        appointmentId: appointment.id, 
+        symptoms: symptomsRaw 
+    }, { attempts: 3, backoff: { type: 'exponential', delay: 2000 } });
+
+    await emailQueue.add('send-confirmation', { 
+        to: patient.email, 
+        subject: 'Appointment Confirmed', 
+        body: `Your appointment is confirmed for ${appointment.startTime}` 
+    }, { attempts: 5, backoff: { type: 'exponential', delay: 5000 } });
+
+    await calendarQueue.add('create-gcal-event', {
+        appointmentId: appointment.id,
+        doctorEmail: doctor.user.email,
+        patientEmail: patient.email,
+        startTime: appointment.startTime,
+        endTime: appointment.endTime
+    }, { attempts: 3, backoff: { type: 'exponential', delay: 5000 } });
 
     res.json({ appointment, message: 'Appointment booked successfully' });
   } catch (error: any) {
