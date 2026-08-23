@@ -55,14 +55,14 @@ This document outlines a phased approach to implementing the system described in
 
 ## Phase 6: Conflict Management & Post-Visit Flows
 **Goal:** Handle doctor leaves, cancellations, and doctor follow-up notes.
-- [ ] **Doctor Leave Handling:**
+- [x] **Doctor Leave Handling:**
   - Implement `POST /api/admin/leaves`.
   - Write transactional logic to cancel overlapping `BOOKED` appointments.
   - Enqueue jobs to notify affected patients and remove GCal events.
-- [ ] **Post-Visit Notes:**
+- [x] **Post-Visit Notes:**
   - Implement `POST /api/appointments/:id/post-visit`.
   - Save doctor notes and trigger a background job to generate the patient-friendly summary via LLM.
-- [ ] **Medication Reminders:**
+- [x] **Medication Reminders:**
   - Implement a daily cron job that scans the `Prescriptions` table and enqueues reminder emails for active medications.
 
 ## Phase 7: Frontend Portals (UI/UX)
