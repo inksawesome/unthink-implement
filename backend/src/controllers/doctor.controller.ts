@@ -120,3 +120,24 @@ export const getSlots = async (req: Request, res: Response): Promise<void> => {
     res.status(500).json({ error: 'Failed to fetch slots' });
   }
 };
+
+export const getAllDoctors = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { specialization } = req.query;
+    const filter = specialization ? { specialization: specialization as string } : {};
+
+    const doctors = await prisma.doctor.findMany({
+      where: filter,
+      include: {
+        user: {
+          select: { name: true, email: true }
+        }
+      }
+    });
+
+    res.json({ doctors });
+  } catch (error) {
+    console.error('Error fetching doctors:', error);
+    res.status(500).json({ error: 'Failed to fetch doctors' });
+  }
+};

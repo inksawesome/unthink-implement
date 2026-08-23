@@ -3,6 +3,7 @@ import { z } from 'zod';
 import prisma from '../db/prisma';
 import { emailQueue, calendarQueue } from '../workers/queue';
 import { startOfDay, endOfDay, parseISO } from 'date-fns';
+import { hashPassword } from '../utils/auth.utils';
 
 const CreateLeaveSchema = z.object({
   doctorId: z.string().uuid(),
@@ -101,5 +102,61 @@ export const createLeave = async (req: Request, res: Response): Promise<void> =>
     } else {
       res.status(500).json({ error: 'Failed to create leave' });
     }
+  }
+};
+
+const CreateDoctorSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8),
+  name: z.string().min(2),
+  specialization: z.string(),
+  workingHours: z.any(),
+  slotDurationMins: z.number().int().min(5).default(30)
+});
+
+export const createDoctor = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const parsedData = CreateDoctorSchema.safeParse(req.body);
+    if (!parsedData.success) {
+      res.status(400).json({ error: 'Validation failed', details: parsedData.error.issues });
+      return;
+    }
+
+    const { email, password, name, specialization, workingHours, slotDurationMins } = parsedData.data;
+
+    const existingUser = await prisma.user.findUnique({ where: { email } });
+    if (existingUser) {
+      res.status(409).json({ error: 'User with this email already exists' });
+      return;
+    }
+
+    const hashedPassword = await hashPassword(password);
+
+    const result = await prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          email,
+          passwordHash: hashedPassword,
+          name,
+          role: 'DOCTOR'
+        }
+      });
+
+      const doctor = await tx.doctor.create({
+        data: {
+          userId: user.id,
+          specialization,
+          workingHours,
+          slotDurationMins
+        }
+      });
+
+      return { user, doctor };
+    });
+
+    res.status(201).json({ message: 'Doctor profile created successfully', doctor: result.doctor });
+  } catch (error) {
+    console.error('Error creating doctor:', error);
+    res.status(500).json({ error: 'Failed to create doctor' });
   }
 };

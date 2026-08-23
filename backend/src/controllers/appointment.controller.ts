@@ -300,3 +300,83 @@ export const addPrescription = async (req: Request, res: Response): Promise<void
     res.status(500).json({ error: 'Failed to add prescription' });
   }
 };
+
+export const getPatientAppointments = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const patientId = req.user?.id;
+    if (!patientId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const appointments = await prisma.appointment.findMany({
+      where: { patientId },
+      include: { doctor: { include: { user: { select: { name: true, email: true } } } } },
+      orderBy: { startTime: 'desc' }
+    });
+    res.json({ appointments });
+  } catch (error) {
+    console.error('Error fetching patient appointments:', error);
+    res.status(500).json({ error: 'Failed to fetch appointments' });
+  }
+};
+
+export const getDoctorAppointments = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const doctor = await prisma.doctor.findUnique({ where: { userId } });
+    if (!doctor) {
+      res.status(403).json({ error: 'Doctor profile not found' });
+      return;
+    }
+
+    const appointments = await prisma.appointment.findMany({
+      where: { doctorId: doctor.id },
+      include: { patient: { select: { name: true, email: true } } },
+      orderBy: { startTime: 'asc' }
+    });
+    res.json({ appointments });
+  } catch (error) {
+    console.error('Error fetching doctor appointments:', error);
+    res.status(500).json({ error: 'Failed to fetch appointments' });
+  }
+};
+
+export const getAppointmentDetails = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = req.params.id as string;
+    const appointment = await prisma.appointment.findUnique({
+      where: { id },
+      include: {
+        patient: { select: { id: true, name: true, email: true } },
+        doctor: { include: { user: { select: { id: true, name: true, email: true } } } },
+        prescriptions: true
+      }
+    });
+
+    if (!appointment) {
+      res.status(404).json({ error: 'Appointment not found' });
+      return;
+    }
+
+    const userId = req.user?.id;
+    const isPatient = appointment.patientId === userId;
+    const isDoctor = appointment.doctor.userId === userId;
+    const isAdmin = req.user?.role === 'ADMIN';
+
+    if (!isPatient && !isDoctor && !isAdmin) {
+      res.status(403).json({ error: 'Unauthorized to view this appointment' });
+      return;
+    }
+
+    res.json({ appointment });
+  } catch (error) {
+    console.error('Error fetching appointment details:', error);
+    res.status(500).json({ error: 'Failed to fetch appointment details' });
+  }
+};
