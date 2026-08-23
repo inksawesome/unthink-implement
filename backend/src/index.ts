@@ -9,6 +9,7 @@ import appointmentRoutes from './routes/appointment.routes';
 import './workers/email.worker';
 import './workers/calendar.worker';
 import './workers/llm.worker';
+import './workers/reminder.worker';
 
 dotenv.config();
 
@@ -21,6 +22,10 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/doctors', doctorRoutes);
 app.use('/api/appointments', appointmentRoutes);
+app.use('/api/admin', (req, res, next) => {
+  // lazy import to avoid circular dependency issues if any
+  require('./routes/admin.routes').default(req, res, next);
+});
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', message: 'Healthcare API is running' });
