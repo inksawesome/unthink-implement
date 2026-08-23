@@ -196,3 +196,107 @@ export const bookAppointment = async (req: Request, res: Response): Promise<void
     }
   }
 };
+
+const PostVisitSchema = z.object({
+  notes: z.string().min(10, 'Please provide detailed notes'),
+});
+
+export const submitPostVisitNotes = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const doctorId = req.user?.id;
+    if (!doctorId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const id = req.params.id as string;
+    const validationResult = PostVisitSchema.safeParse(req.body);
+    if (!validationResult.success) {
+      res.status(400).json({ error: validationResult.error.issues[0].message });
+      return;
+    }
+
+    const doctor = await prisma.doctor.findUnique({ where: { userId: doctorId } });
+    if (!doctor) {
+      res.status(403).json({ error: 'Doctor profile not found' });
+      return;
+    }
+
+    const appointment = await prisma.appointment.findUnique({ where: { id } });
+    if (!appointment || appointment.doctorId !== doctor.id) {
+      res.status(404).json({ error: 'Appointment not found or you do not have permission' });
+      return;
+    }
+
+    await prisma.appointment.update({
+      where: { id },
+      data: {
+        postVisitNotesRaw: validationResult.data.notes,
+        status: 'COMPLETED'
+      }
+    });
+
+    await llmQueue.add('generate-post-visit', { 
+      appointmentId: id, 
+      notes: validationResult.data.notes 
+    }, { attempts: 3, backoff: { type: 'exponential', delay: 2000 } });
+
+    res.json({ success: true, message: 'Post-visit notes submitted successfully' });
+  } catch (error) {
+    console.error('Error submitting post-visit notes:', error);
+    res.status(500).json({ error: 'Failed to submit post-visit notes' });
+  }
+};
+
+const PrescriptionSchema = z.object({
+  medicationName: z.string(),
+  frequency: z.enum(['DAILY', 'TWICE_DAILY', 'WEEKLY', 'AS_NEEDED']),
+  startDate: z.string(), // YYYY-MM-DD
+  endDate: z.string(),   // YYYY-MM-DD
+});
+
+export const addPrescription = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const doctorId = req.user?.id;
+    if (!doctorId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const id = req.params.id as string;
+    const validationResult = PrescriptionSchema.safeParse(req.body);
+    if (!validationResult.success) {
+      res.status(400).json({ error: validationResult.error.issues[0].message });
+      return;
+    }
+
+    const doctor = await prisma.doctor.findUnique({ where: { userId: doctorId } });
+    if (!doctor) {
+      res.status(403).json({ error: 'Doctor profile not found' });
+      return;
+    }
+
+    const appointment = await prisma.appointment.findUnique({ where: { id } });
+    if (!appointment || appointment.doctorId !== doctor.id) {
+      res.status(404).json({ error: 'Appointment not found or you do not have permission' });
+      return;
+    }
+
+    const { medicationName, frequency, startDate, endDate } = validationResult.data;
+
+    const prescription = await prisma.prescription.create({
+      data: {
+        appointmentId: id,
+        medicationName,
+        frequency,
+        startDate: parseISO(startDate),
+        endDate: parseISO(endDate),
+      }
+    });
+
+    res.json({ success: true, prescription, message: 'Prescription added successfully' });
+  } catch (error) {
+    console.error('Error adding prescription:', error);
+    res.status(500).json({ error: 'Failed to add prescription' });
+  }
+};

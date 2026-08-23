@@ -1,14 +1,19 @@
 import { Router } from 'express';
-import { holdSlot, releaseHold, bookAppointment } from '../controllers/appointment.controller';
+import { holdSlot, releaseHold, bookAppointment, submitPostVisitNotes, addPrescription } from '../controllers/appointment.controller';
 import { authenticate, requireRole } from '../middlewares/auth.middleware';
 
 const router = Router();
 
-// Only patients can book appointments
-router.use(authenticate, requireRole(['PATIENT']));
+// All routes require authentication
+router.use(authenticate);
 
-router.post('/hold', holdSlot);
-router.delete('/hold', releaseHold);
-router.post('/book', bookAppointment);
+// Patient routes
+router.post('/hold', requireRole(['PATIENT']), holdSlot);
+router.delete('/hold', requireRole(['PATIENT']), releaseHold);
+router.post('/book', requireRole(['PATIENT']), bookAppointment);
+
+// Doctor routes
+router.post('/:id/post-visit', requireRole(['DOCTOR']), submitPostVisitNotes);
+router.post('/:id/prescriptions', requireRole(['DOCTOR']), addPrescription);
 
 export default router;
