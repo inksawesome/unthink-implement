@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { z } from 'zod';
 import prisma from '../db/prisma';
 import { redisClient } from '../config/redis';
-import { addMinutes, isBefore, isAfter, parse, format, parseISO, startOfDay, endOfDay } from 'date-fns';
+import { addMinutes, isBefore, isAfter, parse, format, startOfDay, endOfDay } from 'date-fns';
 
 const GetSlotsQuerySchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format. Expected YYYY-MM-DD'),
@@ -19,7 +19,7 @@ export const getSlots = async (req: Request, res: Response): Promise<void> => {
     }
 
     const { date } = validationResult.data;
-    const requestDate = parseISO(date); // YYYY-MM-DD parsed into local time/UTC at midnight
+    const requestDate = parse(date, 'yyyy-MM-dd', new Date()); // Parse into local midnight
     const dayOfWeek = format(requestDate, 'eee').toLowerCase(); // 'mon', 'tue', etc.
 
     // 1. Fetch Doctor

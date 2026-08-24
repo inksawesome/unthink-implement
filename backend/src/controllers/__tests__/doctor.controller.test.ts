@@ -42,7 +42,7 @@ describe('Doctor Controller', () => {
       mockRequest.params = { id: 'doctor1' };
       mockRequest.query = { date: tomorrowStr };
       
-      prismaMock.doctor.findUnique.mockResolvedValue({ id: 'd1', userId: 'doctor1', specialization: 'test', workingHours: {}, slotDurationMins: 30, createdAt: new Date(), updatedAt: new Date() });
+      prismaMock.doctor.findUnique.mockResolvedValue({ id: 'd1', userId: 'doctor1', specialization: 'test', workingHours: {}, slotDurationMins: 30, createdAt: new Date(), updatedAt: new Date(), googleRefreshToken: null });
       prismaMock.leave.findFirst.mockResolvedValue({ id: 'l1', doctorId: 'd1', leaveDate: tomorrow, createdAt: new Date() });
       
       await getSlots(mockRequest as Request, mockResponse as Response);
@@ -60,7 +60,7 @@ describe('Doctor Controller', () => {
       prismaMock.doctor.findUnique.mockResolvedValue({ 
         id: 'd1', userId: 'doctor1', specialization: 'test', 
         workingHours: { [dayOfWeek]: ['09:00-10:00'] }, 
-        slotDurationMins: 30, createdAt: new Date(), updatedAt: new Date() 
+        slotDurationMins: 30, createdAt: new Date(), updatedAt: new Date(), googleRefreshToken: null 
       });
       prismaMock.leave.findFirst.mockResolvedValue(null);
       prismaMock.appointment.findMany.mockResolvedValue([]);
@@ -84,7 +84,7 @@ describe('Doctor Controller', () => {
       prismaMock.doctor.findUnique.mockResolvedValue({ 
         id: 'd1', userId: 'doctor1', specialization: 'test', 
         workingHours: { [dayOfWeek]: ['09:00-10:30'] }, // 3 slots: 09:00, 09:30, 10:00
-        slotDurationMins: 30, createdAt: new Date(), updatedAt: new Date() 
+        slotDurationMins: 30, createdAt: new Date(), updatedAt: new Date(), googleRefreshToken: null 
       });
       prismaMock.leave.findFirst.mockResolvedValue(null);
       

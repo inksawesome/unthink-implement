@@ -11,8 +11,8 @@ import { Label } from "@/components/ui/label";
 import { format } from "date-fns";
 import { Clock, Loader2 } from "lucide-react";
 
-export default function BookAppointment({ params }: { params: { doctorId: string } }) {
-  const doctorId = params.doctorId;
+export default function BookAppointment({ params }: { params: Promise<{ doctorId: string }> }) {
+  const { doctorId } = use(params);
   const router = useRouter();
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);

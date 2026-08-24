@@ -47,6 +47,7 @@ model Doctor {
   specialization     String
   workingHours       Json     // e.g. {"mon": ["09:00-17:00"]}
   slotDurationMins   Int      @default(30)
+  googleRefreshToken String?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 

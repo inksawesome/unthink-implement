@@ -2,7 +2,8 @@ import { Router } from 'express';
 import { 
   holdSlot, releaseHold, bookAppointment, 
   submitPostVisitNotes, addPrescription,
-  getPatientAppointments, getDoctorAppointments, getAppointmentDetails
+  getPatientAppointments, getDoctorAppointments, getAppointmentDetails,
+  rescheduleAppointment, cancelAppointment
 } from '../controllers/appointment.controller';
 import { authenticate, requireRole } from '../middlewares/auth.middleware';
 
@@ -24,5 +25,7 @@ router.post('/:id/prescriptions', requireRole(['DOCTOR']), addPrescription);
 
 // Shared routes
 router.get('/:id', getAppointmentDetails);
+router.post('/:id/reschedule', rescheduleAppointment);
+router.delete('/:id/cancel', cancelAppointment);
 
 export default router;

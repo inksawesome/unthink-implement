@@ -2,6 +2,9 @@ import { Request, Response } from 'express';
 import { z } from 'zod';
 import prisma from '../db/prisma';
 import { hashPassword, comparePassword, generateToken } from '../utils/auth.utils';
+import { getGoogleOAuthClient } from '../utils/googleAuth';
+import jwt from 'jsonwebtoken';
+import { JWT_SECRET } from '../config/jwt';
 
 const registerSchema = z.object({
   email: z.string().email(),
@@ -96,5 +99,60 @@ export const login = async (req: Request, res: Response): Promise<void> => {
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const getGoogleAuthUrl = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const doctorId = req.user?.id;
+    if (!doctorId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const oauth2Client = getGoogleOAuthClient();
+    const stateToken = jwt.sign({ userId: doctorId }, JWT_SECRET, { expiresIn: '15m' });
+
+    const url = oauth2Client.generateAuthUrl({
+      access_type: 'offline',
+      prompt: 'consent',
+      scope: ['https://www.googleapis.com/auth/calendar.events'],
+      state: stateToken
+    });
+
+    res.json({ url });
+  } catch (error) {
+    console.error('Error generating Google auth URL:', error);
+    res.status(500).json({ error: 'Failed to generate auth URL' });
+  }
+};
+
+export const googleAuthCallback = async (req: Request, res: Response): Promise<void> => {
+  const { code, state, error: authError } = req.query;
+  const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
+  
+  if (authError) {
+    console.error('Google Auth Error from query:', authError);
+    res.redirect(`${FRONTEND_URL}/doctor/dashboard?calendarSync=error`);
+    return;
+  }
+
+  try {
+    const decoded = jwt.verify(state as string, JWT_SECRET) as { userId: string };
+    const oauth2Client = getGoogleOAuthClient();
+    
+    const { tokens } = await oauth2Client.getToken(code as string);
+    
+    if (tokens.refresh_token) {
+      await prisma.doctor.update({
+        where: { userId: decoded.userId },
+        data: { googleRefreshToken: tokens.refresh_token }
+      });
+    }
+
+    res.redirect(`${FRONTEND_URL}/schedule?calendarSync=success`);
+  } catch (error) {
+    console.error('Google OAuth Callback Error:', error);
+    res.redirect(`${FRONTEND_URL}/schedule?calendarSync=error`);
   }
 };

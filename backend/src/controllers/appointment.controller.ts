@@ -380,3 +380,122 @@ export const getAppointmentDetails = async (req: Request, res: Response): Promis
     res.status(500).json({ error: 'Failed to fetch appointment details' });
   }
 };
+
+const RescheduleSchema = z.object({
+  newStartTime: z.string().datetime()
+});
+
+export const rescheduleAppointment = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = req.params.id as string;
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const validationResult = RescheduleSchema.safeParse(req.body);
+    if (!validationResult.success) {
+      res.status(400).json({ error: validationResult.error.issues[0].message });
+      return;
+    }
+
+    const { newStartTime } = validationResult.data;
+
+    const appointment = await prisma.appointment.findUnique({
+      where: { id },
+      include: { doctor: { include: { user: true } }, patient: true }
+    });
+
+    if (!appointment) {
+      res.status(404).json({ error: 'Appointment not found' });
+      return;
+    }
+
+    // Only allow patient or doctor to reschedule
+    if (appointment.patientId !== userId && appointment.doctor.userId !== userId) {
+      res.status(403).json({ error: 'Unauthorized to reschedule this appointment' });
+      return;
+    }
+
+    const startDateTime = parseISO(newStartTime);
+    const endDateTime = addMinutes(startDateTime, appointment.doctor.slotDurationMins);
+
+    // Update DB
+    const updatedAppt = await prisma.appointment.update({
+      where: { id },
+      data: {
+        startTime: startDateTime,
+        endTime: endDateTime
+      }
+    });
+
+    // Notify Calendar
+    if (updatedAppt.gcalEventId) {
+      await calendarQueue.add('update-gcal-event', {
+        appointmentId: id,
+        patientEmail: appointment.patient.email,
+        startTime: updatedAppt.startTime,
+        endTime: updatedAppt.endTime,
+        gcalEventId: updatedAppt.gcalEventId
+      });
+    }
+
+    // Send emails
+    const emailBody = `Your appointment has been rescheduled to ${updatedAppt.startTime}`;
+    await emailQueue.add('send-reschedule', { to: appointment.patient.email, subject: 'Appointment Rescheduled', body: emailBody });
+    await emailQueue.add('send-reschedule', { to: appointment.doctor.user.email, subject: 'Appointment Rescheduled', body: emailBody });
+
+    res.json({ success: true, appointment: updatedAppt });
+  } catch (error) {
+    console.error('Error rescheduling appointment:', error);
+    res.status(500).json({ error: 'Failed to reschedule appointment' });
+  }
+};
+
+export const cancelAppointment = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = req.params.id as string;
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const appointment = await prisma.appointment.findUnique({
+      where: { id },
+      include: { doctor: { include: { user: true } }, patient: true }
+    });
+
+    if (!appointment) {
+      res.status(404).json({ error: 'Appointment not found' });
+      return;
+    }
+
+    if (appointment.patientId !== userId && appointment.doctor.userId !== userId) {
+      res.status(403).json({ error: 'Unauthorized to cancel this appointment' });
+      return;
+    }
+
+    await prisma.appointment.update({
+      where: { id },
+      data: { status: 'CANCELLED' }
+    });
+
+    if (appointment.gcalEventId) {
+      await calendarQueue.add('delete-gcal-event', {
+        appointmentId: id,
+        gcalEventId: appointment.gcalEventId
+      });
+    }
+
+    const emailBody = `Your appointment on ${appointment.startTime} has been cancelled.`;
+    await emailQueue.add('send-cancellation', { to: appointment.patient.email, subject: 'Appointment Cancelled', body: emailBody });
+    await emailQueue.add('send-cancellation', { to: appointment.doctor.user.email, subject: 'Appointment Cancelled', body: emailBody });
+
+    res.json({ success: true, message: 'Appointment cancelled successfully' });
+  } catch (error) {
+    console.error('Error cancelling appointment:', error);
+    res.status(500).json({ error: 'Failed to cancel appointment' });
+  }
+};

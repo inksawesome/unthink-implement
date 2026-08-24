@@ -38,7 +38,7 @@ describe('Appointment Controller', () => {
 
     it('should return 409 if slot is already held', async () => {
       mockRequest.body = { doctorId: '123e4567-e89b-12d3-a456-426614174000', startTime: new Date().toISOString() };
-      prismaMock.doctor.findUnique.mockResolvedValue({ id: 'd1', userId: 'doc', specialization: '', workingHours: {}, slotDurationMins: 30, createdAt: new Date(), updatedAt: new Date() });
+      prismaMock.doctor.findUnique.mockResolvedValue({ id: 'd1', userId: 'doc', specialization: '', workingHours: {}, slotDurationMins: 30, createdAt: new Date(), updatedAt: new Date(), googleRefreshToken: null });
       (redisClient.set as jest.Mock).mockResolvedValue(null); // 'NX' returns null if key exists
       
       await holdSlot(mockRequest as Request, mockResponse as Response);
@@ -47,7 +47,7 @@ describe('Appointment Controller', () => {
 
     it('should return hold token on success', async () => {
       mockRequest.body = { doctorId: '123e4567-e89b-12d3-a456-426614174000', startTime: new Date().toISOString() };
-      prismaMock.doctor.findUnique.mockResolvedValue({ id: 'd1', userId: 'doc', specialization: '', workingHours: {}, slotDurationMins: 30, createdAt: new Date(), updatedAt: new Date() });
+      prismaMock.doctor.findUnique.mockResolvedValue({ id: 'd1', userId: 'doc', specialization: '', workingHours: {}, slotDurationMins: 30, createdAt: new Date(), updatedAt: new Date(), googleRefreshToken: null });
       (redisClient.set as jest.Mock).mockResolvedValue('OK');
       
       await holdSlot(mockRequest as Request, mockResponse as Response);
@@ -102,7 +102,7 @@ describe('Appointment Controller', () => {
     it('should book successfully and delete hold', async () => {
       mockRequest.body = validBody;
       (redisClient.get as jest.Mock).mockResolvedValue(JSON.stringify({ patientId: 'patient1', holdToken: validBody.holdToken }));
-      prismaMock.doctor.findUnique.mockResolvedValue({ id: 'd1', userId: 'doc', specialization: '', workingHours: {}, slotDurationMins: 30, createdAt: new Date(), updatedAt: new Date(), user: { email: 'doctor@test.com' } } as any);
+      prismaMock.doctor.findUnique.mockResolvedValue({ id: 'd1', userId: 'doc', specialization: '', workingHours: {}, slotDurationMins: 30, createdAt: new Date(), updatedAt: new Date(), googleRefreshToken: null, user: { email: 'doctor@test.com' } } as any);
       prismaMock.user.findUnique.mockResolvedValue({ id: 'patient1', email: 'patient@test.com', role: 'PATIENT', passwordHash: '', name: 'P', createdAt: new Date(), updatedAt: new Date() } as any);
       
       const mockTx = { appointment: { create: jest.fn().mockResolvedValue({ id: 'a1' }) } };
@@ -121,7 +121,7 @@ describe('Appointment Controller', () => {
       const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
       mockRequest.body = validBody;
       (redisClient.get as jest.Mock).mockResolvedValue(JSON.stringify({ patientId: 'patient1', holdToken: validBody.holdToken }));
-      prismaMock.doctor.findUnique.mockResolvedValue({ id: 'd1', userId: 'doc', specialization: '', workingHours: {}, slotDurationMins: 30, createdAt: new Date(), updatedAt: new Date(), user: { email: 'doctor@test.com' } } as any);
+      prismaMock.doctor.findUnique.mockResolvedValue({ id: 'd1', userId: 'doc', specialization: '', workingHours: {}, slotDurationMins: 30, createdAt: new Date(), updatedAt: new Date(), googleRefreshToken: null, user: { email: 'doctor@test.com' } } as any);
       prismaMock.user.findUnique.mockResolvedValue({ id: 'patient1', email: 'patient@test.com', role: 'PATIENT', passwordHash: '', name: 'P', createdAt: new Date(), updatedAt: new Date() } as any);
       
       prismaMock.$transaction.mockImplementation(async () => {

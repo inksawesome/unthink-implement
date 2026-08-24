@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { z } from 'zod';
 import prisma from '../db/prisma';
 import { emailQueue, calendarQueue } from '../workers/queue';
-import { startOfDay, endOfDay, parseISO } from 'date-fns';
+import { startOfDay, endOfDay, parse } from 'date-fns';
 import { hashPassword } from '../utils/auth.utils';
 
 const CreateLeaveSchema = z.object({
@@ -19,7 +19,7 @@ export const createLeave = async (req: Request, res: Response): Promise<void> =>
     }
 
     const { doctorId, leaveDate } = validationResult.data;
-    const dateStr = parseISO(leaveDate);
+    const dateStr = parse(leaveDate, 'yyyy-MM-dd', new Date());
     const start = startOfDay(dateStr);
     const end = endOfDay(dateStr);
 
@@ -170,7 +170,7 @@ const UpdateDoctorSchema = z.object({
 
 export const updateDoctor = async (req: Request, res: Response): Promise<void> => {
   try {
-    const doctorId = req.params.id; // This is the Doctor.id
+    const doctorId = req.params.id as string; // This is the Doctor.id
     const parsedData = UpdateDoctorSchema.safeParse(req.body);
     if (!parsedData.success) {
       res.status(400).json({ error: 'Validation failed', details: parsedData.error.issues });
@@ -215,7 +215,7 @@ export const updateDoctor = async (req: Request, res: Response): Promise<void> =
 
 export const deleteDoctor = async (req: Request, res: Response): Promise<void> => {
   try {
-    const doctorId = req.params.id;
+    const doctorId = req.params.id as string;
 
     const existingDoctor = await prisma.doctor.findUnique({
       where: { id: doctorId },
@@ -231,7 +231,7 @@ export const deleteDoctor = async (req: Request, res: Response): Promise<void> =
       return;
     }
 
-    if (existingDoctor._count.appointments > 0) {
+    if (existingDoctor._count && existingDoctor._count.appointments > 0) {
       res.status(400).json({ error: 'Cannot delete doctor with existing appointments to preserve medical records.' });
       return;
     }
