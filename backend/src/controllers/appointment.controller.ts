@@ -3,6 +3,7 @@ import { z } from 'zod';
 import prisma from '../db/prisma';
 import { redisClient } from '../config/redis';
 import crypto from 'crypto';
+import { buildEmailTemplate } from '../utils/emailTemplates';
 import { addMinutes, parseISO } from 'date-fns';
 import { emailQueue, calendarQueue, llmQueue } from '../workers/queue';
 
@@ -172,10 +173,19 @@ export const bookAppointment = async (req: Request, res: Response): Promise<void
         symptoms: symptomsRaw 
     }, { attempts: 3, backoff: { type: 'exponential', delay: 2000 } });
 
+    const formattedTime = new Date(appointment.startTime).toLocaleString();
+    const textBody = `Your appointment is confirmed for ${formattedTime}`;
+    const htmlBody = buildEmailTemplate(
+      'Appointment Confirmed',
+      'Your upcoming appointment has been successfully booked. Please find the details below:',
+      { 'Date & Time': formattedTime, 'Doctor': doctor.user.name }
+    );
+
     await emailQueue.add('send-confirmation', { 
         to: patient.email, 
         subject: 'Appointment Confirmed', 
-        body: `Your appointment is confirmed for ${appointment.startTime}` 
+        body: textBody,
+        html: htmlBody
     }, { attempts: 5, backoff: { type: 'exponential', delay: 5000 } });
 
     await calendarQueue.add('create-gcal-event', {
@@ -442,9 +452,16 @@ export const rescheduleAppointment = async (req: Request, res: Response): Promis
     }
 
     // Send emails
-    const emailBody = `Your appointment has been rescheduled to ${updatedAppt.startTime}`;
-    await emailQueue.add('send-reschedule', { to: appointment.patient.email, subject: 'Appointment Rescheduled', body: emailBody });
-    await emailQueue.add('send-reschedule', { to: appointment.doctor.user.email, subject: 'Appointment Rescheduled', body: emailBody });
+    const formattedTime = new Date(updatedAppt.startTime).toLocaleString();
+    const textBody = `Your appointment has been rescheduled to ${formattedTime}`;
+    const htmlBody = buildEmailTemplate(
+      'Appointment Rescheduled',
+      'Your appointment has been successfully rescheduled. Please review the updated time below.',
+      { 'New Date & Time': formattedTime, 'Doctor': appointment.doctor.user.name, 'Patient': appointment.patient.name }
+    );
+    
+    await emailQueue.add('send-reschedule', { to: appointment.patient.email, subject: 'Appointment Rescheduled', body: textBody, html: htmlBody });
+    await emailQueue.add('send-reschedule', { to: appointment.doctor.user.email, subject: 'Appointment Rescheduled', body: textBody, html: htmlBody });
 
     res.json({ success: true, appointment: updatedAppt });
   } catch (error) {
@@ -489,9 +506,16 @@ export const cancelAppointment = async (req: Request, res: Response): Promise<vo
       });
     }
 
-    const emailBody = `Your appointment on ${appointment.startTime} has been cancelled.`;
-    await emailQueue.add('send-cancellation', { to: appointment.patient.email, subject: 'Appointment Cancelled', body: emailBody });
-    await emailQueue.add('send-cancellation', { to: appointment.doctor.user.email, subject: 'Appointment Cancelled', body: emailBody });
+    const formattedTime = new Date(appointment.startTime).toLocaleString();
+    const textBody = `Your appointment on ${formattedTime} has been cancelled.`;
+    const htmlBody = buildEmailTemplate(
+      'Appointment Cancelled',
+      'This email is to confirm that your appointment has been cancelled.',
+      { 'Cancelled Date & Time': formattedTime, 'Doctor': appointment.doctor.user.name, 'Patient': appointment.patient.name }
+    );
+    
+    await emailQueue.add('send-cancellation', { to: appointment.patient.email, subject: 'Appointment Cancelled', body: textBody, html: htmlBody });
+    await emailQueue.add('send-cancellation', { to: appointment.doctor.user.email, subject: 'Appointment Cancelled', body: textBody, html: htmlBody });
 
     res.json({ success: true, message: 'Appointment cancelled successfully' });
   } catch (error) {

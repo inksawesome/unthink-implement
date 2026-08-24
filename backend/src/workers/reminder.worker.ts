@@ -1,6 +1,7 @@
 import cron from 'node-cron';
 import prisma from '../db/prisma';
 import { emailQueue } from './queue';
+import { buildEmailTemplate } from '../utils/emailTemplates';
 import { startOfDay, endOfDay } from 'date-fns';
 
 console.log('[ReminderWorker] Starting cron jobs for medication reminders');
@@ -58,11 +59,20 @@ async function processReminders(timeOfDay: 'MORNING' | 'EVENING') {
       }
 
       if (shouldSend) {
+        const textBody = `Hello ${rx.appointment.patient.name}, this is your ${timeOfDay.toLowerCase()} reminder to take your medication: ${rx.medicationName}. Instructions: ${rx.frequency}.`;
+        const htmlBody = buildEmailTemplate(
+          `Medication Reminder: ${rx.medicationName}`,
+          `Hello ${rx.appointment.patient.name}, this is your ${timeOfDay.toLowerCase()} reminder to take your medication.`,
+          { 'Medication': rx.medicationName, 'Instructions': rx.frequency }
+        );
+
         await emailQueue.add('send-reminder', {
           to: rx.appointment.patient.email,
           subject: `Medication Reminder: ${rx.medicationName}`,
-          body: `Hello ${rx.appointment.patient.name}, this is your ${timeOfDay.toLowerCase()} reminder to take your medication: ${rx.medicationName}. Instructions: ${rx.frequency}.`
+          body: textBody,
+          html: htmlBody
         });
+        console.log(`[ReminderWorker] Queued ${timeOfDay} reminder for patient ${rx.appointment.patient.id}, medication: ${rx.medicationName}`);
       }
     }
   } catch (error) {

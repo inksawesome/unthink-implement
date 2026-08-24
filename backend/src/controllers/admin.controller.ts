@@ -4,6 +4,7 @@ import prisma from '../db/prisma';
 import { emailQueue, calendarQueue } from '../workers/queue';
 import { startOfDay, endOfDay, parse } from 'date-fns';
 import { hashPassword } from '../utils/auth.utils';
+import { buildEmailTemplate } from '../utils/emailTemplates';
 
 const CreateLeaveSchema = z.object({
   doctorId: z.string().uuid(),
@@ -74,10 +75,19 @@ export const createLeave = async (req: Request, res: Response): Promise<void> =>
     // 4. Dispatch jobs to notify patients and delete events
     for (const appt of result.overlappingAppointments) {
       // Email
+      const formattedTime = new Date(appt.startTime).toLocaleString();
+      const textBody = `We are sorry to inform you that your appointment on ${formattedTime} has been cancelled because the doctor is on leave. Please book a new slot.`;
+      const htmlBody = buildEmailTemplate(
+        'Appointment Cancelled - Doctor on Leave',
+        'We are sorry to inform you that your upcoming appointment has been cancelled because the doctor is on leave. Please book a new slot at your earliest convenience.',
+        { 'Cancelled Date & Time': formattedTime, 'Doctor': doctor.user.name, 'Patient': appt.patient.name }
+      );
+      
       await emailQueue.add('send-cancellation', {
         to: appt.patient.email,
         subject: 'Appointment Cancelled - Doctor on Leave',
-        body: `We are sorry to inform you that your appointment on ${appt.startTime} has been cancelled because the doctor is on leave. Please book a new slot.`
+        body: textBody,
+        html: htmlBody
       });
 
       // Calendar
