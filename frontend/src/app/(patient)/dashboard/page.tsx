@@ -1,35 +1,120 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 
 export default function PatientDashboard() {
   const [appointments, setAppointments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Reschedule state
+  const [rescheduleModalOpen, setRescheduleModalOpen] = useState(false);
+  const [selectedAppt, setSelectedAppt] = useState<any>(null);
+  const [rescheduleDate, setRescheduleDate] = useState<Date | undefined>(new Date());
+  const [availableSlots, setAvailableSlots] = useState<string[]>([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+  
+  const fetchAppointments = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/appointments`, {
+        headers: {
+          "Authorization": `Bearer ${localStorage.getItem("token")}`
+        }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAppointments(data.appointments);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchAppointments = async () => {
+    fetchAppointments();
+  }, []);
+
+  useEffect(() => {
+    if (!rescheduleModalOpen || !selectedAppt || !rescheduleDate) return;
+    
+    const fetchSlots = async () => {
+      setLoadingSlots(true);
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/appointments`, {
+        const dateStr = format(rescheduleDate, "yyyy-MM-dd");
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/doctors/${selectedAppt.doctor.userId}/slots?date=${dateStr}`, {
           headers: {
             "Authorization": `Bearer ${localStorage.getItem("token")}`
           }
         });
         if (res.ok) {
           const data = await res.json();
-          setAppointments(data.appointments);
+          setAvailableSlots(data.slots || []);
+        } else {
+          setAvailableSlots([]);
         }
       } catch (err) {
         console.error(err);
       } finally {
-        setLoading(false);
+        setLoadingSlots(false);
       }
     };
-    fetchAppointments();
-  }, []);
+    fetchSlots();
+  }, [rescheduleDate, rescheduleModalOpen, selectedAppt]);
+
+  const handleCancel = async (id: string) => {
+    if (!confirm("Are you sure you want to cancel this appointment?")) return;
+    
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/appointments/${id}/cancel`, {
+        method: 'DELETE',
+        headers: {
+          "Authorization": `Bearer ${localStorage.getItem("token")}`
+        }
+      });
+      if (res.ok) {
+        alert("Appointment cancelled successfully");
+        fetchAppointments();
+      } else {
+        const data = await res.json();
+        alert(data.error || "Failed to cancel");
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleReschedule = async (newStartTime: string) => {
+    if (!selectedAppt) return;
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/appointments/${selectedAppt.id}/reschedule`, {
+        method: 'POST',
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem("token")}`
+        },
+        body: JSON.stringify({ newStartTime })
+      });
+      if (res.ok) {
+        alert("Appointment rescheduled successfully");
+        setRescheduleModalOpen(false);
+        fetchAppointments();
+      } else {
+        const data = await res.json();
+        alert(data.error || "Failed to reschedule");
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const upcoming = appointments.filter(a => a.status === "BOOKED" || a.status === "PENDING");
   const past = appointments.filter(a => a.status === "COMPLETED" || a.status === "CANCELLED");
@@ -74,6 +159,18 @@ export default function PatientDashboard() {
                     {format(new Date(apt.startTime), "EEEE, MMMM do, yyyy 'at' h:mm a")}
                   </div>
                 </CardContent>
+                <CardFooter className="flex justify-end gap-2 pt-2 pb-4">
+                  <Button variant="outline" onClick={() => {
+                    setSelectedAppt(apt);
+                    setRescheduleDate(new Date(apt.startTime));
+                    setRescheduleModalOpen(true);
+                  }}>
+                    Reschedule
+                  </Button>
+                  <Button variant="destructive" onClick={() => handleCancel(apt.id)}>
+                    Cancel
+                  </Button>
+                </CardFooter>
               </Card>
             ))
           )}
@@ -114,6 +211,50 @@ export default function PatientDashboard() {
         </TabsContent>
       </Tabs>
       )}
+
+      <Dialog open={rescheduleModalOpen} onOpenChange={setRescheduleModalOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Reschedule Appointment</DialogTitle>
+            <DialogDescription>
+              Select a new date and time for your appointment with {selectedAppt?.doctor?.user?.name}.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-4 space-y-4">
+            <div className="flex justify-center border rounded-md p-2">
+              <Calendar
+                mode="single"
+                selected={rescheduleDate}
+                onSelect={setRescheduleDate}
+                className="rounded-md"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <h4 className="text-sm font-medium">Available Slots</h4>
+              {loadingSlots ? (
+                <div className="text-sm text-muted-foreground">Loading slots...</div>
+              ) : availableSlots.length === 0 ? (
+                <div className="text-sm text-muted-foreground">No slots available on this date.</div>
+              ) : (
+                <div className="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto pr-2">
+                  {availableSlots.map(slot => (
+                    <Button 
+                      key={slot} 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleReschedule(slot)}
+                    >
+                      {format(new Date(slot), "h:mm a")}
+                    </Button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

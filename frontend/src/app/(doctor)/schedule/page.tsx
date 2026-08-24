@@ -125,6 +125,28 @@ export default function DoctorSchedule() {
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
+                    {apt.status !== "COMPLETED" && apt.status !== "CANCELLED" && (
+                      <Button variant="destructive" size="sm" onClick={async () => {
+                        if (!confirm("Are you sure you want to cancel this appointment?")) return;
+                        try {
+                          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/appointments/${apt.id}/cancel`, {
+                            method: 'DELETE',
+                            headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
+                          });
+                          if (res.ok) {
+                            alert("Appointment cancelled successfully");
+                            window.location.reload(); // Simple reload to refresh data
+                          } else {
+                            const data = await res.json();
+                            alert(data.error || "Failed to cancel");
+                          }
+                        } catch (err) {
+                          console.error(err);
+                        }
+                      }}>
+                        Cancel
+                      </Button>
+                    )}
                     <Link href={`/appointments/${apt.id}`}>
                       <Button variant={apt.status === "COMPLETED" ? "outline" : "default"}>
                         {apt.status === "COMPLETED" ? "View Details" : "Start Visit"}

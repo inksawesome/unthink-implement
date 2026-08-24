@@ -188,6 +188,20 @@ export const bookAppointment = async (req: Request, res: Response): Promise<void
         html: htmlBody
     }, { attempts: 5, backoff: { type: 'exponential', delay: 5000 } });
 
+    const doctorTextBody = `A new appointment has been booked by ${patient.name} for ${formattedTime}`;
+    const doctorHtmlBody = buildEmailTemplate(
+      'New Appointment Booked',
+      'A new appointment has been successfully booked by a patient. Please find the details below:',
+      { 'Date & Time': formattedTime, 'Patient': patient.name }
+    );
+
+    await emailQueue.add('send-confirmation-doctor', {
+        to: doctor.user.email,
+        subject: 'New Appointment Booked',
+        body: doctorTextBody,
+        html: doctorHtmlBody
+    }, { attempts: 5, backoff: { type: 'exponential', delay: 5000 } });
+
     await calendarQueue.add('create-gcal-event', {
         appointmentId: appointment.id,
         doctorEmail: doctor.user.email,
