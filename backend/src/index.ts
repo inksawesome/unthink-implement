@@ -10,6 +10,7 @@ import './workers/email.worker';
 import './workers/calendar.worker';
 import './workers/llm.worker';
 import './workers/reminder.worker';
+import './workers/appt-reminder.worker';
 
 dotenv.config();
 
