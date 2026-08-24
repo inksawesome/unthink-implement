@@ -160,3 +160,90 @@ export const createDoctor = async (req: Request, res: Response): Promise<void> =
     res.status(500).json({ error: 'Failed to create doctor' });
   }
 };
+
+const UpdateDoctorSchema = z.object({
+  name: z.string().min(2).optional(),
+  specialization: z.string().optional(),
+  workingHours: z.any().optional(),
+  slotDurationMins: z.number().int().min(5).optional()
+});
+
+export const updateDoctor = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const doctorId = req.params.id; // This is the Doctor.id
+    const parsedData = UpdateDoctorSchema.safeParse(req.body);
+    if (!parsedData.success) {
+      res.status(400).json({ error: 'Validation failed', details: parsedData.error.issues });
+      return;
+    }
+
+    const { name, specialization, workingHours, slotDurationMins } = parsedData.data;
+
+    const existingDoctor = await prisma.doctor.findUnique({ where: { id: doctorId } });
+    if (!existingDoctor) {
+      res.status(404).json({ error: 'Doctor not found' });
+      return;
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      let updatedUser = null;
+      if (name) {
+        updatedUser = await tx.user.update({
+          where: { id: existingDoctor.userId },
+          data: { name }
+        });
+      }
+
+      const updatedDoctor = await tx.doctor.update({
+        where: { id: doctorId },
+        data: {
+          specialization,
+          workingHours,
+          slotDurationMins
+        }
+      });
+
+      return { updatedUser, updatedDoctor };
+    });
+
+    res.json({ message: 'Doctor profile updated successfully', doctor: result.updatedDoctor });
+  } catch (error) {
+    console.error('Error updating doctor:', error);
+    res.status(500).json({ error: 'Failed to update doctor' });
+  }
+};
+
+export const deleteDoctor = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const doctorId = req.params.id;
+
+    const existingDoctor = await prisma.doctor.findUnique({
+      where: { id: doctorId },
+      include: {
+        _count: {
+          select: { appointments: true }
+        }
+      }
+    });
+
+    if (!existingDoctor) {
+      res.status(404).json({ error: 'Doctor not found' });
+      return;
+    }
+
+    if (existingDoctor._count.appointments > 0) {
+      res.status(400).json({ error: 'Cannot delete doctor with existing appointments to preserve medical records.' });
+      return;
+    }
+
+    // Delete the user; cascading deletes the doctor profile and leaves
+    await prisma.user.delete({
+      where: { id: existingDoctor.userId }
+    });
+
+    res.json({ message: 'Doctor deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting doctor:', error);
+    res.status(500).json({ error: 'Failed to delete doctor' });
+  }
+};
