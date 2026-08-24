@@ -100,10 +100,10 @@ export const createLeave = async (req: Request, res: Response): Promise<void> =>
     }
 
     if (result.overlappingAppointments.length > 0) {
-      const doctorTextBody = \`Your leave for \${new Date(date).toLocaleDateString()} has been processed. \${result.overlappingAppointments.length} appointments were automatically cancelled and patients have been notified.\`;
+      const doctorTextBody = `Your leave for ${new Date(date).toLocaleDateString()} has been processed. ${result.overlappingAppointments.length} appointments were automatically cancelled and patients have been notified.`;
       const doctorHtmlBody = buildEmailTemplate(
         'Leave Approved & Appointments Cancelled',
-        \`Your leave for \${new Date(date).toLocaleDateString()} has been processed. <b>\${result.overlappingAppointments.length}</b> appointments were automatically cancelled, and the patients have been notified.\`,
+        `Your leave for ${new Date(date).toLocaleDateString()} has been processed. <b>${result.overlappingAppointments.length}</b> appointments were automatically cancelled, and the patients have been notified.`,
         { 'Date': new Date(date).toLocaleDateString(), 'Cancelled Appointments': result.overlappingAppointments.length.toString() }
       );
 
