@@ -42,6 +42,8 @@ async function run() {
   const endpoints = [
     { method: 'GET', path: '/health', auth: false },
     { method: 'GET', path: '/api/doctors', auth: true },
+    { method: 'GET', path: '/api/appointments', auth: true },
+    { method: 'GET', path: '/api/doctors/1/slots', auth: true }, // Will likely return empty/404 but generates traffic
     // You can add more endpoints here over time
   ];
 
