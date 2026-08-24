@@ -1,0 +1,26 @@
+name: Render Keep-Alive Traffic Simulator
+
+on:
+  schedule:
+    # Runs every 12 minutes
+    - cron: '*/12 * * * *'
+  workflow_dispatch: # Allows manual triggering from the GitHub UI
+
+jobs:
+  simulate-traffic:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          
+      - name: Run Traffic Simulation
+        env:
+          BACKEND_URL: ${{ secrets.BACKEND_URL }}
+          SIM_EMAIL: ${{ secrets.SIM_EMAIL }}
+          SIM_PASSWORD: ${{ secrets.SIM_PASSWORD }}
+        run: node simulate-traffic.js
