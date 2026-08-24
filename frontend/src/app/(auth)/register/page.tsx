@@ -56,7 +56,7 @@ export default function RegisterPage() {
           <CardTitle className="text-2xl">Register</CardTitle>
           <CardDescription>Create a new account.</CardDescription>
         </CardHeader>
-        <form onSubmit={handleRegister}>
+        <form onSubmit={handleRegister} className="flex flex-col gap-6">
           <CardContent className="space-y-4">
             {error && (
               <div className="bg-destructive/15 text-destructive p-3 rounded-md text-sm font-medium">

@@ -64,7 +64,7 @@ export default function LoginPage() {
           <CardTitle className="text-2xl">Login</CardTitle>
           <CardDescription>Enter your email below to login to your account.</CardDescription>
         </CardHeader>
-        <form onSubmit={handleLogin}>
+        <form onSubmit={handleLogin} className="flex flex-col gap-6">
           <CardContent className="space-y-4">
             {error && (
               <div className="bg-destructive/15 text-destructive p-3 rounded-md text-sm font-medium">
