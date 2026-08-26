@@ -88,3 +88,5 @@ The system integrates with an LLM (e.g., OpenAI) to summarize patient symptoms b
 
 ### Post-visit Summary Prompt
 > "Convert these clinical notes into a patient-friendly summary with medication schedule and follow-up steps: <notes>"
+
+> ## The calender and mail functions work only for the test user whose credentials have been set due to OAuth rules.
